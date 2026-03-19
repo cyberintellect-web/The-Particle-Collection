@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Collective | Sentient Geometry</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        :root {
+            --neon-blue: #00f2ff;
+            --neon-purple: #bc13fe;
+            --bg-dark: #0a0a0a;
+            --glass: rgba(255, 255, 255, 0.03);
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-dark);
+            color: white;
+            font-family: 'Inter', -apple-system, sans-serif;
+            overflow: hidden;
+        }
+
+        /* Glassmorphism UI */
+        .ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            padding: 24px;
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            pointer-events: none;
+            max-width: 300px;
+        }
+
+        h1 {
+            margin: 0 0 8px 0;
+            font-size: 1.5rem;
+            letter-spacing: -1px;
+            background: linear-gradient(to right, var(--neon-blue), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p {
+            font-size: 0.9rem;
+            opacity: 0.6;
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: var(--neon-blue);
+            border-radius: 50%;
+            margin-right: 8px;
+            box-shadow: 0 0 10px var(--neon-blue);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ui-overlay">
+        <h1>THE COLLECTIVE</h1>
+        <p><span class="status-dot"></span>Simulation: Active</p>
+        <p style="margin-top: 10px;">Move your cursor to disrupt the equilibrium. Click to spawn new life forms.</p>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script>
+        const { Engine, Render, Runner, Bodies, Composite, MouseConstraint, Mouse, Events } = Matter;
+
+        // Setup
+        const engine = Engine.create();
+        const world = engine.world;
+        const container = document.getElementById('canvas-container');
+        
+        // Random Gravity on load
+        engine.gravity.y = (Math.random() * 2) - 1; 
+        engine.gravity.x = (Math.random() * 0.4) - 0.2;
+
+        const render = Render.create({
+            element: container,
+            engine: engine,
+            options: {
+                width: window.innerWidth,
+                height: window.innerHeight,
+                wireframes: false,
+                background: 'transparent'
+            }
+        });
+
+        Render.run(render);
+        const runner = Runner.create();
+        Runner.run(runner, engine);
+
+        // Walls
+        const wallOptions = { isStatic: true, render: { visible: false } };
+        Composite.add(world, [
+            Bodies.rectangle(window.innerWidth/2, -50, window.innerWidth, 100, wallOptions),
+            Bodies.rectangle(window.innerWidth/2, window.innerHeight+50, window.innerWidth, 100, wallOptions),
+            Bodies.rectangle(-50, window.innerHeight/2, 100, window.innerHeight, wallOptions),
+            Bodies.rectangle(window.innerWidth+50, window.innerHeight/2, 100, window.innerHeight, wallOptions)
+        ]);
+
+        // Spawn Random Shapes
+        function spawnShape(x, y) {
+            const size = Math.random() * 30 + 20;
+            const colors = ['#00f2ff', '#bc13fe', '#ff0055', '#39ff14'];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            
+            let shape;
+            const rand = Math.random();
+            if (rand < 0.33) {
+                shape = Bodies.circle(x, y, size/2, {
+                    render: { fillStyle: randomColor, opacity: 0.8 }
+                });
+            } else if (rand < 0.66) {
+                shape = Bodies.rectangle(x, y, size, size, {
+                    render: { fillStyle: randomColor, opacity: 0.8, chamfer: { radius: 10 } }
+                });
+            } else {
+                shape = Bodies.polygon(x, y, 3, size, {
+                    render: { fillStyle: randomColor, opacity: 0.8 }
+                });
+            }
+            Composite.add(world, shape);
+        }
+
+        // Initial Batch
+        for(let i = 0; i < 40; i++) {
+            spawnShape(Math.random() * window.innerWidth, Math.random() * window.innerHeight);
+        }
+
+        // Mouse Interactivity
+        const mouse = Mouse.create(render.canvas);
+        const mouseConstraint = MouseConstraint.create(engine, {
+            mouse: mouse,
+            constraint: {
+                stiffness: 0.2,
+                render: { visible: false }
+            }
+        });
+        Composite.add(world, mouseConstraint);
+
+        // Click to spawn
+        window.addEventListener('mousedown', () => {
+            spawnShape(mouse.position.x, mouse.position.y);
+        });
+
+        // Responsive Resize
+        window.addEventListener('resize', () => {
+            render.canvas.width = window.innerWidth;
+            render.canvas.height = window.innerHeight;
+        });
+
+    </script>
+</body>
+</html>
