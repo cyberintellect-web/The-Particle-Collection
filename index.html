@@ -3,198 +3,222 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ARCHITECT // SYSTEM_V02</title>
+    <title>SITE_BREAKER // V.04</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;500&display=swap');
-
         :root {
-            --bg: #000000;
-            --grid-line: #1a1a1a;
-            --accent: #ffffff;
-            --glitch-red: #ff003c;
-            --glitch-blue: #00f2ff;
+            --bg: #0a0a0c;
+            --accent: #00ff41; /* Classic Matrix/Terminal Green */
+            --glass: rgba(255, 255, 255, 0.05);
+            --border: #333;
         }
 
         body, html {
-            margin: 0;
-            padding: 0;
+            margin: 0; padding: 0;
             background: var(--bg);
             color: var(--accent);
-            font-family: 'Fira Code', monospace;
+            font-family: 'Courier New', monospace;
             height: 100vh;
             overflow: hidden;
-            display: flex;
+            user-select: none;
         }
 
-        /* Sidebar UI */
-        .sidebar {
-            width: 300px;
-            border-right: 1px solid var(--grid-line);
-            padding: 40px;
+        /* The "Desktop" */
+        .desktop {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: 
+                linear-gradient(90deg, var(--glass) 1px, transparent 1px),
+                linear-gradient(var(--glass) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+
+        /* Glass Windows */
+        .window {
+            position: absolute;
+            background: rgba(10, 10, 12, 0.9);
+            border: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            cursor: move;
+            min-width: 200px;
+        }
+
+        .window-header {
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            font-weight: bold;
             display: flex;
-            flex-direction: column;
             justify-content: space-between;
-            z-index: 10;
-            background: var(--bg);
         }
 
-        .logo {
-            font-weight: 500;
-            letter-spacing: -1px;
-            font-size: 1.2rem;
-        }
-
-        .terminal {
-            font-size: 0.7rem;
-            color: #555;
-            height: 200px;
-            overflow: hidden;
-            line-height: 1.6;
-        }
-
-        /* The Grid Canvas */
-        .grid-container {
-            flex-grow: 1;
-            display: grid;
-            grid-template-columns: repeat(20, 1fr);
-            grid-template-rows: repeat(20, 1fr);
-            position: relative;
-        }
-
-        .cell {
-            border: 0.5px solid var(--grid-line);
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            position: relative;
-        }
-
-        .cell:hover {
-            background: var(--accent);
-            transform: scale(0.9);
-            box-shadow: 0 0 20px var(--accent);
-            z-index: 5;
-        }
-
-        .cell.active {
-            background: var(--accent);
-            clip-path: polygon(0 0, 100% 0, 80% 100%, 0% 100%);
-        }
-
-        /* Glitch Effects */
-        .glitch-overlay {
+        /* The Game Character (A rogue 'Cursor') */
+        #player {
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
+            width: 20px;
+            height: 20px;
+            background: var(--accent);
+            box-shadow: 0 0 15px var(--accent);
+            z-index: 1000;
             pointer-events: none;
-            opacity: 0.03;
-            background: repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 2px);
+            transition: transform 0.1s;
         }
 
-        .status-bar {
+        /* Enemy "Elements" */
+        .enemy {
             position: absolute;
+            background: #ff0055;
+            color: white;
+            padding: 5px 10px;
+            font-size: 12px;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+
+        .hud {
+            position: fixed;
             bottom: 20px;
-            right: 40px;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        button {
-            background: none;
-            border: 1px solid #333;
-            color: #fff;
+            left: 20px;
+            font-size: 14px;
+            z-index: 2000;
+            background: black;
             padding: 10px;
-            font-family: inherit;
-            cursor: pointer;
-            margin-top: 10px;
-            transition: 0.2s;
+            border: 1px solid var(--accent);
         }
 
-        button:hover {
-            background: #fff;
-            color: #000;
+        #glitch-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 999;
+            opacity: 0.1;
         }
     </style>
 </head>
 <body>
 
-    <div class="sidebar">
-        <div>
-            <div class="logo">ARCHITECT.SYS</div>
-            <p style="font-size: 0.7rem; opacity: 0.4;">V.02 // NULL_VOID</p>
-            <button onclick="scrambleGrid()">SCRAMBLE_MATRIX</button>
-            <button onclick="resetGrid()">CLEAR_ARRAY</button>
+    <div id="player"></div>
+    <canvas id="glitch-canvas"></canvas>
+
+    <div class="desktop" id="desktop">
+        <div class="hud">
+            SYSTEM_STABILITY: <span id="stability">100</span>%<br>
+            CORE_SCORE: <span id="score">0</span>
         </div>
-        
-        <div class="terminal" id="term">
-            > Initializing architecture...<br>
-            > Grid synced to cursor...<br>
-            > Awaiting user input...
+
+        <div class="window" style="top: 100px; left: 100px;" id="win1">
+            <div class="window-header"><span>DIRECTORY_BROWSER</span> [X]</div>
+            <div class="content">
+                <p>Welcome to Site_Breaker.</p>
+                <p>Use <b>WASD</b> to move your core.</p>
+                <p>Avoid the "Floating Errors".</p>
+                <button onclick="spawnEnemy()" style="background: var(--accent); border: none; padding: 5px; cursor: pointer;">FORCE_ERROR</button>
+            </div>
         </div>
     </div>
 
-    <div class="grid-container" id="grid">
-        </div>
-
-    <div class="glitch-overlay"></div>
-    <div class="status-bar" id="coords">X: 00 // Y: 00</div>
-
     <script>
-        const grid = document.getElementById('grid');
-        const term = document.getElementById('term');
-        const coords = document.getElementById('coords');
+        const player = document.getElementById('player');
+        const desktop = document.getElementById('desktop');
+        const stabilityEl = document.getElementById('stability');
+        const scoreEl = document.getElementById('score');
 
-        // Create 400 cells
-        for (let i = 0; i < 400; i++) {
-            const cell = document.createElement('div');
-            cell.classList.add('cell');
+        let pX = window.innerWidth / 2;
+        let pY = window.innerHeight / 2;
+        let stability = 100;
+        let score = 0;
+        let enemies = [];
+
+        // Movement
+        const keys = {};
+        window.onkeydown = (e) => keys[e.key.toLowerCase()] = true;
+        window.onkeyup = (e) => keys[e.key.toLowerCase()] = false;
+
+        function update() {
+            if (keys['w']) pY -= 5;
+            if (keys['s']) pY += 5;
+            if (keys['a']) pX -= 5;
+            if (keys['d']) pX += 5;
+
+            player.style.left = pX + 'px';
+            player.style.top = pY + 'px';
+
+            moveEnemies();
+            checkCollisions();
             
-            // Mouse Enter Effect
-            cell.addEventListener('mouseenter', () => {
-                cell.classList.toggle('active');
-                logUpdate();
-                updateCoords(i);
+            requestAnimationFrame(update);
+        }
+
+        function spawnEnemy() {
+            const enemy = document.createElement('div');
+            enemy.className = 'enemy';
+            enemy.innerText = '404_NOT_FOUND';
+            enemy.style.left = Math.random() * window.innerWidth + 'px';
+            enemy.style.top = Math.random() * window.innerHeight + 'px';
+            
+            const data = {
+                el: enemy,
+                x: parseFloat(enemy.style.left),
+                y: parseFloat(enemy.style.top),
+                vx: (Math.random() - 0.5) * 4,
+                vy: (Math.random() - 0.5) * 4
+            };
+            
+            desktop.appendChild(enemy);
+            enemies.push(data);
+            score += 10;
+            scoreEl.innerText = score;
+        }
+
+        function moveEnemies() {
+            enemies.forEach(en => {
+                en.x += en.vx;
+                en.y += en.vy;
+
+                if (en.x < 0 || en.x > window.innerWidth) en.vx *= -1;
+                if (en.y < 0 || en.y > window.innerHeight) en.vy *= -1;
+
+                en.el.style.left = en.x + 'px';
+                en.el.style.top = en.y + 'px';
             });
-
-            grid.appendChild(cell);
         }
 
-        function updateCoords(index) {
-            const x = index % 20;
-            const y = Math.floor(index / 20);
-            coords.innerText = `X: ${x.toString().padStart(2, '0')} // Y: ${y.toString().padStart(2, '0')}`;
-        }
-
-        function logUpdate() {
-            const messages = [
-                "Structure alignment modified.",
-                "Geometry cache updated.",
-                "Vector point injected.",
-                "Null-space expanded.",
-                "Grid integrity: 98.4%",
-                "Shadow-render complete."
-            ];
-            const msg = messages[Math.floor(Math.random() * messages.length)];
-            term.innerHTML = `> ${msg}<br>` + term.innerHTML;
-            if (term.childNodes.length > 20) term.lastChild.remove();
-        }
-
-        function scrambleGrid() {
-            const cells = document.querySelectorAll('.cell');
-            cells.forEach(c => {
-                if (Math.random() > 0.8) c.classList.toggle('active');
+        function checkCollisions() {
+            enemies.forEach(en => {
+                const dist = Math.hypot(pX - en.x, pY - en.y);
+                if (dist < 30) {
+                    stability -= 0.5;
+                    stabilityEl.innerText = Math.floor(stability);
+                    document.body.style.filter = `hue-rotate(${100 - stability}deg)`;
+                    
+                    if (stability <= 0) {
+                        alert("SYSTEM CRITICAL: REBOOTING");
+                        location.reload();
+                    }
+                }
             });
-            term.innerHTML = `> GLOBAL SCRAMBLE INITIATED<br>` + term.innerHTML;
         }
 
-        function resetGrid() {
-            const cells = document.querySelectorAll('.cell');
-            cells.forEach(c => c.classList.remove('active'));
-            term.innerHTML = `> ARRAY PURGED<br>` + term.innerHTML;
-        }
+        // Draggable Windows (Simplified)
+        let activeWin = null;
+        document.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.window')) activeWin = e.target.closest('.window');
+        });
+        document.addEventListener('mouseup', () => activeWin = null);
+        document.addEventListener('mousemove', (e) => {
+            if (activeWin) {
+                activeWin.style.left = e.clientX - 100 + 'px';
+                activeWin.style.top = e.clientY - 20 + 'px';
+            }
+        });
 
-        // Random Glitch Timer
-        setInterval(() => {
-            document.body.style.filter = Math.random() > 0.98 ? 'invert(1)' : 'none';
-        }, 100);
+        // Start
+        setInterval(spawnEnemy, 3000);
+        update();
+
     </script>
 </body>
 </html>
