@@ -3,14 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Collective | Sentient Geometry</title>
+    <title>AETHER // Procedural Reality</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500&display=swap');
+
         :root {
-            --neon-blue: #00f2ff;
-            --neon-purple: #bc13fe;
-            --bg-dark: #0a0a0a;
-            --glass: rgba(255, 255, 255, 0.03);
+            --accent: #00f2ff;
+            --bg: #050505;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.1);
         }
 
         body, html {
@@ -18,89 +20,132 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: var(--bg-dark);
-            color: white;
-            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: #fff;
+            font-family: 'Space Grotesk', sans-serif;
             overflow: hidden;
         }
 
-        /* Glassmorphism UI */
-        .ui-overlay {
+        /* Scanline Overlay for "Cool" Factor */
+        body::before {
+            content: " ";
+            display: block;
             position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 10;
-            padding: 24px;
-            background: var(--glass);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 100;
+            background-size: 100% 2px, 3px 100%;
             pointer-events: none;
-            max-width: 300px;
         }
 
-        h1 {
-            margin: 0 0 8px 0;
-            font-size: 1.5rem;
-            letter-spacing: -1px;
-            background: linear-gradient(to right, var(--neon-blue), var(--neon-purple));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        /* Glass HUD */
+        .hud {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            z-index: 101;
+            padding: 30px;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            width: 320px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
 
-        p {
-            font-size: 0.9rem;
-            opacity: 0.6;
+        .hud h1 {
             margin: 0;
-            line-height: 1.4;
+            font-weight: 500;
+            font-size: 1.2rem;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: var(--accent);
+            text-shadow: 0 0 15px var(--accent);
         }
 
-        #canvas-container {
-            width: 100vw;
-            height: 100vh;
+        .stats {
+            margin-top: 20px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.5;
         }
 
-        .status-dot {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            background: var(--neon-blue);
-            border-radius: 50%;
-            margin-right: 8px;
-            box-shadow: 0 0 10px var(--neon-blue);
+        .btn-container {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            background: var(--border);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: 0.3s;
+            pointer-events: all;
+        }
+
+        .btn:hover {
+            background: var(--accent);
+            color: black;
+        }
+
+        canvas {
+            filter: contrast(1.2) brightness(1.1) drop-shadow(0 0 5px rgba(0,242,255,0.2));
+        }
+
+        /* Hidden Admin Panel Trigger */
+        #secret-trigger {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            width: 5px;
+            height: 5px;
+            opacity: 0.05;
+            cursor: crosshair;
+            z-index: 1000;
         }
     </style>
 </head>
 <body>
 
-    <div class="ui-overlay">
-        <h1>THE COLLECTIVE</h1>
-        <p><span class="status-dot"></span>Simulation: Active</p>
-        <p style="margin-top: 10px;">Move your cursor to disrupt the equilibrium. Click to spawn new life forms.</p>
+    <div class="hud">
+        <h1>Aether.sys</h1>
+        <div class="stats">
+            Status: Synchronized<br>
+            Entropy: <span id="entropy-val">0.42</span><br>
+            Entities: <span id="entity-count">0</span>
+        </div>
+        <div class="btn-container">
+            <button class="btn" onclick="toggleGravity()">Flip Gravity</button>
+            <button class="btn" onclick="clearAll()">Purge</button>
+        </div>
     </div>
 
-    <div id="canvas-container"></div>
+    <div id="secret-trigger" onclick="alert('Admin Protocol Engaged: Physics Multiplier x2')"></div>
+    <div id="world"></div>
 
     <script>
-        const { Engine, Render, Runner, Bodies, Composite, MouseConstraint, Mouse, Events } = Matter;
+        const { Engine, Render, Runner, Bodies, Composite, MouseConstraint, Mouse, Vector, Events } = Matter;
 
-        // Setup
         const engine = Engine.create();
         const world = engine.world;
-        const container = document.getElementById('canvas-container');
-        
-        // Random Gravity on load
-        engine.gravity.y = (Math.random() * 2) - 1; 
-        engine.gravity.x = (Math.random() * 0.4) - 0.2;
+        engine.gravity.y = 0; // Zero gravity by default for "floating" feel
 
         const render = Render.create({
-            element: container,
+            element: document.getElementById('world'),
             engine: engine,
             options: {
                 width: window.innerWidth,
                 height: window.innerHeight,
                 wireframes: false,
-                background: 'transparent'
+                background: 'transparent',
+                pixelRatio: window.devicePixelRatio
             }
         });
 
@@ -108,64 +153,97 @@
         const runner = Runner.create();
         Runner.run(runner, engine);
 
-        // Walls
-        const wallOptions = { isStatic: true, render: { visible: false } };
-        Composite.add(world, [
-            Bodies.rectangle(window.innerWidth/2, -50, window.innerWidth, 100, wallOptions),
-            Bodies.rectangle(window.innerWidth/2, window.innerHeight+50, window.innerWidth, 100, wallOptions),
-            Bodies.rectangle(-50, window.innerHeight/2, 100, window.innerHeight, wallOptions),
-            Bodies.rectangle(window.innerWidth+50, window.innerHeight/2, 100, window.innerHeight, wallOptions)
-        ]);
+        // Responsive Walls with "Bounciness"
+        const wallOptions = { isStatic: true, restitution: 0.9, render: { visible: false } };
+        let walls = [];
+        function createWalls() {
+            if(walls.length) Composite.remove(world, walls);
+            walls = [
+                Bodies.rectangle(window.innerWidth/2, -25, window.innerWidth, 50, wallOptions),
+                Bodies.rectangle(window.innerWidth/2, window.innerHeight+25, window.innerWidth, 50, wallOptions),
+                Bodies.rectangle(-25, window.innerHeight/2, 50, window.innerHeight, wallOptions),
+                Bodies.rectangle(window.innerWidth+25, window.innerHeight/2, 50, window.innerWidth, wallOptions)
+            ];
+            Composite.add(world, walls);
+        }
+        createWalls();
 
-        // Spawn Random Shapes
-        function spawnShape(x, y) {
-            const size = Math.random() * 30 + 20;
-            const colors = ['#00f2ff', '#bc13fe', '#ff0055', '#39ff14'];
-            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+        // Entity Spawner
+        function createEntity(x, y) {
+            const size = Math.random() * 25 + 15;
+            const hue = Math.floor(Math.random() * 60) + 180; // Cyans and Blues
+            const color = `hsla(${hue}, 80%, 60%, 0.8)`;
             
-            let shape;
-            const rand = Math.random();
-            if (rand < 0.33) {
-                shape = Bodies.circle(x, y, size/2, {
-                    render: { fillStyle: randomColor, opacity: 0.8 }
-                });
-            } else if (rand < 0.66) {
-                shape = Bodies.rectangle(x, y, size, size, {
-                    render: { fillStyle: randomColor, opacity: 0.8, chamfer: { radius: 10 } }
-                });
-            } else {
-                shape = Bodies.polygon(x, y, 3, size, {
-                    render: { fillStyle: randomColor, opacity: 0.8 }
-                });
-            }
-            Composite.add(world, shape);
+            const entity = Bodies.polygon(x, y, Math.floor(Math.random() * 3) + 3, size, {
+                restitution: 0.8,
+                frictionAir: 0.02,
+                render: {
+                    fillStyle: 'transparent',
+                    strokeStyle: color,
+                    lineWidth: 2
+                }
+            });
+            
+            // Add initial random drift
+            Matter.Body.setVelocity(entity, { 
+                x: (Math.random() - 0.5) * 10, 
+                y: (Math.random() - 0.5) * 10 
+            });
+
+            Composite.add(world, entity);
+            updateStats();
         }
 
-        // Initial Batch
-        for(let i = 0; i < 40; i++) {
-            spawnShape(Math.random() * window.innerWidth, Math.random() * window.innerHeight);
-        }
-
-        // Mouse Interactivity
+        // Mouse Forces
         const mouse = Mouse.create(render.canvas);
-        const mouseConstraint = MouseConstraint.create(engine, {
-            mouse: mouse,
-            constraint: {
-                stiffness: 0.2,
-                render: { visible: false }
+        Events.on(engine, 'afterUpdate', () => {
+            if (!mouse.position.x) return;
+            
+            // Apply subtle attraction to all bodies toward mouse
+            const bodies = Composite.allBodies(world);
+            for (let body of bodies) {
+                if (body.isStatic) continue;
+                
+                let forceMagnitude = 0.00002 * body.mass;
+                let delta = Vector.sub(mouse.position, body.position);
+                let distance = Vector.magnitude(delta);
+                
+                if (distance < 300) {
+                    // Push away if too close, pull if medium distance
+                    let multiplier = distance < 100 ? -2 : 1;
+                    Matter.Body.applyForce(body, body.position, {
+                        x: delta.x * forceMagnitude * multiplier,
+                        y: delta.y * forceMagnitude * multiplier
+                    });
+                }
             }
         });
-        Composite.add(world, mouseConstraint);
 
-        // Click to spawn
-        window.addEventListener('mousedown', () => {
-            spawnShape(mouse.position.x, mouse.position.y);
-        });
+        // Initialize world
+        for(let i = 0; i < 30; i++) createEntity(Math.random() * window.innerWidth, Math.random() * window.innerHeight);
 
-        // Responsive Resize
+        // Functions
+        function toggleGravity() {
+            engine.gravity.y = engine.gravity.y === 0 ? 1 : 0;
+            document.getElementById('entropy-val').innerText = Math.random().toFixed(2);
+        }
+
+        function clearAll() {
+            const allBodies = Composite.allBodies(world);
+            const toRemove = allBodies.filter(b => !b.isStatic);
+            Composite.remove(world, toRemove);
+            updateStats();
+        }
+
+        function updateStats() {
+            document.getElementById('entity-count').innerText = Composite.allBodies(world).length - 4;
+        }
+
+        window.addEventListener('mousedown', () => createEntity(mouse.position.x, mouse.position.y));
         window.addEventListener('resize', () => {
             render.canvas.width = window.innerWidth;
             render.canvas.height = window.innerHeight;
+            createWalls();
         });
 
     </script>
