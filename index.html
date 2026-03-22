@@ -165,7 +165,7 @@
 
         // Register Service Worker silently
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./uv/uv.sw.js', {
+            navigator.serviceWorker.register('/uv.sw.js', {
                 scope: __uv$config.prefix
             }).then(() => {
                 status.innerText = "BARE_ACTIVE";
